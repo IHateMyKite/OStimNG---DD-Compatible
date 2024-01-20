@@ -2,23 +2,21 @@
 
 #include "GraphTable.h"
 
-#include "Util/VectorUtil.h"
-
 namespace Graph {
-    bool ActionAttributes::hasTag(std::string tag) {
-        return VectorUtil::contains(tags, tag);
-    }
-
     bool Action::doFullStrip(int position) {
-        return actor == position && attributes->actor.fullStrip || 
-              target == position && attributes->target.fullStrip || 
-           performer == position && attributes->performer.fullStrip;
+        bool doStrip = false;
+        roles.forEach([this, position, &doStrip](Role role, int index) {
+            doStrip |= index == position && attributes->roles.get(role)->fullStrip;
+        });
+        return doStrip;
     }
 
     uint32_t Action::getStrippingMask(int position) {
-        return (actor == position ? attributes->actor.strippingMask : 0) |
-               (target == position ? attributes->target.strippingMask : 0) |
-               (performer == position ? attributes->performer.strippingMask : 0);
+        int mask = 0;
+        roles.forEach([this, position, &mask](Role role, int index) {
+            mask |= index == position ? attributes->roles.get(role)->fullStrip : 0;
+        });
+        return mask;
     }
 
     bool Action::isType(std::string type) {

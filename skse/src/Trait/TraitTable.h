@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ActorPropertyList.h"
 #include "EquipObject.h"
 #include "FacialExpression.h"
 
@@ -16,8 +17,6 @@ namespace Trait {
 
         static void setup();
         static void setupForms();
-
-        static std::string getActorType(GameAPI::GameActor actor);
 
         static std::vector<FacialExpression*>* getExpressionsForActionActor(std::string);
         static std::vector<FacialExpression*>* getExpressionsForActionTarget(std::string);
@@ -41,8 +40,6 @@ namespace Trait {
         static void addToTable(std::unordered_map<std::string, std::vector<FacialExpression*>*>* table, std::string key, FacialExpression* expression);
         static std::vector<FacialExpression*>* getExpressionsFromTable(std::unordered_map<std::string, std::vector<FacialExpression*>*> table, std::string key);
 
-        inline static std::unordered_map<std::string, GameAPI::GameCondition> actorTypes;
-
         inline static std::unordered_map<std::string, std::vector<FacialExpression*>*> expressionsByActionActors;
         inline static std::unordered_map<std::string, std::vector<FacialExpression*>*> expressionsByActionTargets;
         inline static std::unordered_map<std::string, std::vector<FacialExpression*>*> expressionsByEvents;
@@ -52,5 +49,24 @@ namespace Trait {
         inline static std::unordered_map<std::string, EquipObject*> defaultEquipObjects;
 
         inline static RE::TESFaction* noFacialExpressionsFaction;
+
+#pragma region actorProperties
+    public:
+        inline static std::string getActorType(GameAPI::GameActor actor) {return actorTypes.get(actor, "");}
+        inline static std::string getActorExpression(GameAPI::GameActor actor) {return actorExpressions.get(actor, "");}
+        inline static bool isActorMuted(GameAPI::GameActor actor) { return actorMutes.get(actor, false); }
+        inline static bool isActorMuffled(GameAPI::GameActor actor) { return actorMuffles.get(actor, false); }
+        static std::set<std::string> getActorRequirements(GameAPI::GameActor actor);
+
+    private:
+        inline static ActorPropertyList<std::string> actorTypes;
+        inline static ActorPropertyList<std::string> actorExpressions;
+        inline static ActorPropertyList<bool> actorMutes;
+        inline static ActorPropertyList<bool> actorMuffles;
+        inline static std::unordered_map<std::string, ActorPropertyList<bool>> actorRequirements;
+
+
+        static void setupActorProperties();
+#pragma endregion
     };
 }

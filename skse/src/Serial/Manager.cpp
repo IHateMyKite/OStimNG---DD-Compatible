@@ -57,6 +57,76 @@ namespace Serialization {
     }
 
 
+    float getActionStimulation(Graph::Role role, RE::FormID formID, std::string action) {
+        auto iter = actorData.find(formID);
+        if (iter != actorData.end()) {
+            std::unordered_map<std::string, float>* stimulations = iter->second.actionStimulations.get(role);
+            auto iter2 = stimulations->find(action);
+            if (iter2 != stimulations->end()) {
+                return iter2->second;
+            }
+        }
+
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
+    void setActionStimulation(Graph::Role role, RE::FormID formID, std::string action, float stimulation) {
+        actorData.insert({formID, {}}).first->second.actionStimulations.get(role)->emplace(action, stimulation).first->second = stimulation;
+    }
+
+    float getActionMaxStimulation(Graph::Role role, RE::FormID formID, std::string action) {
+        auto iter = actorData.find(formID);
+        if (iter != actorData.end()) {
+            std::unordered_map<std::string, float>* maxStimulations = iter->second.actionMaxStimulations.get(role);
+            auto iter2 = maxStimulations->find(action);
+            if (iter2 != maxStimulations->end()) {
+                return iter2->second;
+            }
+        }
+
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
+    void setActionMaxStimulation(Graph::Role role, RE::FormID formID, std::string action, float maxStimulation) {
+        actorData.insert({formID, {}}).first->second.actionMaxStimulations.get(role)->emplace(action, maxStimulation).first->second = maxStimulation;
+    }
+
+
+    float getEventStimulation(Graph::Role role, RE::FormID formID, std::string evt) {
+        auto iter = actorData.find(formID);
+        if (iter != actorData.end()) {
+            std::unordered_map<std::string, float>* stimulations = iter->second.eventStimulations.get(role);
+            auto iter2 = stimulations->find(evt);
+            if (iter2 != stimulations->end()) {
+                return iter2->second;
+            }
+        }
+
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
+    void setEventStimulation(Graph::Role role, RE::FormID formID, std::string evt, float stimulation) {
+        actorData.insert({formID, {}}).first->second.eventStimulations.get(role)->emplace(evt, stimulation).first->second = stimulation;
+    }
+
+    float getEventMaxStimulation(Graph::Role role, RE::FormID formID, std::string evt) {
+        auto iter = actorData.find(formID);
+        if (iter != actorData.end()) {
+            std::unordered_map<std::string, float>* maxStimulations = iter->second.eventMaxStimulations.get(role);
+            auto iter2 = maxStimulations->find(evt);
+            if (iter2 != maxStimulations->end()) {
+                return iter2->second;
+            }
+        }
+
+        return std::numeric_limits<float>::quiet_NaN();
+    }
+
+    void setEventMaxStimulation(Graph::Role role, RE::FormID formID, std::string evt, float maxStimulation) {
+        actorData.insert({formID, {}}).first->second.eventMaxStimulations.get(role)->emplace(evt, maxStimulation).first->second = maxStimulation;
+    }
+
+
     void Save(SKSE::SerializationInterface* serial) {
         std::unique_lock lock(_lock);
         logger::info("serializing data");
@@ -175,6 +245,46 @@ namespace Serialization {
                     json["actorData"][stringID]["voice"]["formid"] = std::to_string(data.voiceSet & 0x00FFFFFF);
                 }
             }
+
+            data.actionStimulations.forEach([&json, &stringID](Graph::Role role, std::unordered_map<std::string, float> stimulations){
+                if (!stimulations.empty()) {
+                    std::string key = "action" + *Graph::RoleMapAPI::TERMS.get(role) + "Stimulations";
+                    json["actorData"][stringID][key] = json::object();
+                    for (auto& [action, stim] : stimulations) {
+                        json["actorData"][stringID][key][action] = stim;
+                    }
+                }    
+            });
+
+            data.actionMaxStimulations.forEach([&json, &stringID](Graph::Role role, std::unordered_map<std::string, float> maxStimulations){
+                if (!maxStimulations.empty()) {
+                    std::string key = "action" + *Graph::RoleMapAPI::TERMS.get(role) + "MaxStimulations";
+                    json["actorData"][stringID][key] = json::object();
+                    for (auto& [action, stim] : maxStimulations) {
+                        json["actorData"][stringID][key][action] = stim;
+                    }
+                }    
+            });
+
+            data.eventStimulations.forEach([&json, &stringID](Graph::Role role, std::unordered_map<std::string, float> stimulations){
+                if (!stimulations.empty()) {
+                    std::string key = "event" + *Graph::RoleMapAPI::TERMS.get(role) + "Stimulations";
+                    json["actorData"][stringID][key] = json::object();
+                    for (auto& [evt, stim] : stimulations) {
+                        json["actorData"][stringID][key][evt] = stim;
+                    }
+                }    
+            });
+
+            data.eventMaxStimulations.forEach([&json, &stringID](Graph::Role role, std::unordered_map<std::string, float> maxStimulations){
+                if (!maxStimulations.empty()) {
+                    std::string key = "event" + *Graph::RoleMapAPI::TERMS.get(role) + "MaxStimulations";
+                    json["actorData"][stringID][key] = json::object();
+                    for (auto& [evt, stim] : maxStimulations) {
+                        json["actorData"][stringID][key][evt] = stim;
+                    }
+                }    
+            });
         }
     }
 
@@ -216,6 +326,44 @@ namespace Serialization {
                     }
                     data.voiceSet = voiceID;
                 }
+
+
+                data.actionStimulations.forEach([&value](Graph::Role role, std::unordered_map<std::string, float> stimulations) {
+                    std::string key = "action" + *Graph::RoleMapAPI::TERMS.get(role) + "Stimulations";
+                    if (value.contains(key)) {
+                        for (auto& [action, stim] : value[key].items()) {
+                            stimulations[action] = stim;
+                        }
+                    }
+                });
+
+                data.actionMaxStimulations.forEach([&value](Graph::Role role, std::unordered_map<std::string, float> maxStimulations) {
+                    std::string key = "action" + *Graph::RoleMapAPI::TERMS.get(role) + "MaxStimulations";
+                    if (value.contains(key)) {
+                        for (auto& [action, stim] : value[key].items()) {
+                            maxStimulations[action] = stim;
+                        }
+                    }
+                });
+
+
+                data.eventStimulations.forEach([&value](Graph::Role role, std::unordered_map<std::string, float> stimulations) {
+                    std::string key = "event" + *Graph::RoleMapAPI::TERMS.get(role) + "Stimulations";
+                    if (value.contains(key)) {
+                        for (auto& [evt, stim] : value[key].items()) {
+                            stimulations[evt] = stim;
+                        }
+                    }
+                });
+
+                data.eventMaxStimulations.forEach([&value](Graph::Role role, std::unordered_map<std::string, float> maxStimulations) {
+                    std::string key = "event" + *Graph::RoleMapAPI::TERMS.get(role) + "MaxStimulations";
+                    if (value.contains(key)) {
+                        for (auto& [evt, stim] : value[key].items()) {
+                            maxStimulations[evt] = stim;
+                        }
+                    }
+                });
 
                 actorData[formID] = data;
             }

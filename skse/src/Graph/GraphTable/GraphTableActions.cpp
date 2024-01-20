@@ -1,47 +1,25 @@
 #include "Graph/GraphTable.h"
 
 #include "Util/JsonFileLoader.h"
+#include "Util/JsonUtil.h"
+#include "Util/MapUtil.h"
 #include "Util/StringUtil.h"
 
 namespace Graph {
     const char* ACTION_FILE_PATH{"Data/SKSE/Plugins/OStim/actions"};
 
-    ActionActor parseActionActor(std::string path, json& json) {
+    ActionActor parseActionActor(std::string path, std::string filename, json& json) {
         ActionActor actor;
-        if (json.contains("stimulation")) {
-            actor.stimulation = json["stimulation"];
-        }
 
-        if (json.contains("maxStimulation")) {
-            actor.maxStimulation = json["maxStimulation"];
-        }
+        JsonUtil::loadFloat(json, actor.stimulation, "stimulation", filename, "action", false);
+        JsonUtil::loadFloat(json, actor.maxStimulation, "maxStimulation", filename, "action", false);
+        JsonUtil::loadBool(json, actor.fullStrip, "fullStrip", filename, "action", false);
+        JsonUtil::loadBool(json, actor.moan, "moan", filename, "action", false);
+        JsonUtil::loadBool(json, actor.talk, "talk", filename, "action", false);
+        JsonUtil::loadBool(json, actor.muffled, "muffled", filename, "action", false);
+        JsonUtil::loadLowerString(json, actor.expressionOverride, "expressionOverride", filename, "action", false);
 
-        if (json.contains("fullStrip")) {
-            actor.fullStrip = json["fullStrip"];
-        }
-
-        if (json.contains("moan")) {
-            actor.moan = json["moan"];
-        }
-
-        if (json.contains("talk")) {
-            actor.talk = json["talk"];
-        }
-
-        if (json.contains("muffled")) {
-            actor.muffled = json["muffled"];
-        }
-
-        if (json.contains("expressionOverride")) {
-            actor.expressionOverride = json["expressionOverride"];
-            StringUtil::toLower(&actor.expressionOverride);
-        }
-
-        if (json.contains("requirements")) {
-            for (auto& req : json["requirements"]) {
-                actor.requirements |= GraphTable::getRequirement(req);
-            }
-        }
+        JsonUtil::consumeLowerStringList(json, [&actor](std::string requirement) { actor.requirements.insert(requirement); }, "requirements", filename, "action", false);
 
         if (json.contains("strippingSlots")) {
             for (auto& slot : json["strippingSlots"]) {
@@ -155,15 +133,15 @@ namespace Graph {
                 }
 
                 Graph::ActionAttributes attr;
-                if (json.contains("actor")) {
-                    attr.actor = parseActionActor(path, json["actor"]);
-                }
-                if (json.contains("target")) {
-                    attr.target = parseActionActor(path, json["target"]);
-                }
-                if (json.contains("performer")) {
-                    attr.performer = parseActionActor(path, json["performer"]);
-                }
+                attr.type = filename;
+                StringUtil::toLower(&attr.type);
+
+                attr.roles.forEach([&path, &filename, &json](Role role, ActionActor& actor) {
+                    std::string key = *RoleMapAPI::KEYS.get(role);
+                    if (json.contains(key)) {
+                        actor = parseActionActor(path, filename, json[key]);
+                    }
+                });
 
                 if (json.contains("sounds")) {
                     for (auto& sound : json["sounds"]) {
@@ -182,9 +160,12 @@ namespace Graph {
                     }
                 }
 
-                StringUtil::toLower(&filename);
-                actions[filename] = attr;
+                actions[attr.type] = attr;
             });
+    }
+
+    std::vector<std::string> GraphTable::getActions() {
+        return MapUtil::keyList(actions);
     }
 
     std::string GraphTable::getActionAlias(std::string type) {

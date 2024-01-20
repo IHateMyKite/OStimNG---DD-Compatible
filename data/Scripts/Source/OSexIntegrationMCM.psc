@@ -3,6 +3,8 @@ ScriptName OsexIntegrationMCM Extends SKI_ConfigBase
 int[] SlotSets
 int UndressingSlotMask
 
+string[] RoleKeys
+
 ; actor role settings
 
 ; ai control settings
@@ -62,6 +64,11 @@ Function SetupPages()
 	Pages[11] = "$ostim_page_actors"
 	Pages[12] = "$ostim_page_debug"
 	Pages[13] = "$ostim_page_about"
+
+	RoleKeys = new string[3]
+	RoleKeys[0] = "actor"
+	RoleKeys[1] = "target"
+	RoleKeys[2] = "performer"
 EndFunction
 
 Event OnConfigRegister()
@@ -179,12 +186,16 @@ EndEvent
 Event OnOptionSliderOpen(int Option)
 	If currPage == "$ostim_page_excitement"
 		OnOptionSliderOpenExcitement(Option)
+	ElseIf currPage == "$ostim_page_actors"
+		OnOptionSliderOpenActors(Option)
 	EndIf
 EndEvent
 
 Event OnOptionSliderAccept(int Option, float Value)
 	If currPage == "$ostim_page_excitement"
 		OnOptionSliderAcceptExcitement(Option, Value)
+	ElseIf currPage == "$ostim_page_actors"
+		OnOptionSliderAcceptActors(Option, Value)
 	EndIf
 EndEvent
 
@@ -1705,48 +1716,40 @@ Function DrawGenderRolesPage()
 	SetCursorPosition(1)
 	AddColoredHeader("$ostim_header_strap_ons")
 	SetCursorPosition(3)
-	AddToggleOptionST("OID_EquipStrapOnIfNeeded", "$ostim_equip_strap_on_if_needed", Main.EquipStrapOnIfNeeded)
-	SetCursorPosition(5)
 	AddToggleOptionST("OID_UnequipStrapOnIfNotNeeded", "$ostim_unequip_strap_on_if_not_needed", Main.UnequipStrapOnIfNotNeeded)
-	SetCursorPosition(7)
-	int UnequipStrapOnIfInWayFlags = OPTION_FLAG_NONE
-	If Main.UnequipStrapOnIfNotNeeded
-		UnequipStrapOnIfInWayFlags = OPTION_FLAG_DISABLED
-	EndIf
-	AddToggleOptionST("OID_UnequipStrapOnIfInWay", "$ostim_unequip_strap_on_if_in_way", Main.UnequipStrapOnIfInWay, UnequipStrapOnIfInWayFlags)
 
-	SetCursorPosition(11)
+	SetCursorPosition(7)
 	AddMenuOptionST("OID_DefaultStrapOn", "$ostim_default_strap_on", OData.GetEquipObjectName(0x1, "strapon"))
-	SetCursorPosition(13)
+	SetCursorPosition(9)
 	AddMenuOptionST("OID_PlayerStrapOn", "$ostim_player_strap_on", OData.GetEquipObjectName(0x7, "strapon"))
 
-	SetCursorPosition(17)
+	SetCursorPosition(13)
 	AddColoredHeader("$ostim_header_futanari")
-	SetCursorPosition(19)
+	SetCursorPosition(15)
 	int UseSoSSexFlags = OPTION_FLAG_NONE
 	If !Main.SoSInstalled
 		UseSoSSexFlags = OPTION_FLAG_DISABLED
 	EndIf
 	AddToggleOptionST("OID_UseSoSSex", "$ostim_use_sos_sex", Main.UseSoSSex, UseSoSSexFlags)
-	SetCursorPosition(21)
+	SetCursorPosition(17)
 	int UseTNGSexFlags = OPTION_FLAG_NONE
 	If !Main.TNGInstalled
 		UseTNGSexFlags = OPTION_FLAG_DISABLED
 	EndIf
 	AddToggleOptionST("OID_UseTNGSex", "$ostim_use_tng_sex", Main.UseTNGSex, UseTNGSexFlags)
-	SetCursorPosition(23)
+	SetCursorPosition(19)
 	int FutaUseMaleRoleFlags = OPTION_FLAG_NONE
 	If !Main.IntendedSexOnly || (!Main.SoSInstalled || !Main.UseSoSSex) && (!Main.TNGInstalled || !Main.UseTNGSex)
 		FutaUseMaleRoleFlags = OPTION_FLAG_DISABLED
 	EndIf
 	AddToggleOptionST("OID_FutaUseMaleRole", "$ostim_futa_use_male_role", Main.FutaUseMaleRole, FutaUseMaleRoleFlags)
-	SetCursorPosition(25)
+	SetCursorPosition(21)
 	int FutaFlags = OPTION_FLAG_NONE
 	If (!Main.SoSInstalled || !Main.UseSoSSex) && (!Main.TNGInstalled || !Main.UseTNGSex)
 		FutaFlags = OPTION_FLAG_DISABLED
 	EndIf
 	AddToggleOptionST("OID_FutaUseMaleExcitement", "$ostim_futa_use_male_excitement", Main.FutaUseMaleExcitement, FutaFlags)
-	SetCursorPosition(27)
+	SetCursorPosition(23)
 	AddToggleOptionST("OID_FutaUseMaleClimax", "$ostim_futa_use_male_orgasm", Main.FutaUseMaleClimax, FutaFlags)
 EndFunction
 
@@ -1882,17 +1885,6 @@ State OID_PlayerSelectRoleThreesome
 EndState
 
 
-State OID_EquipStrapOnIfNeeded
-	Event OnHighlightST()
-		SetInfoText("$ostim_tooltip_equip_strap_on_if_needed")
-	EndEvent
-
-	Event OnSelectST()
-		Main.EquipStrapOnIfNeeded = !Main.EquipStrapOnIfNeeded
-		SetToggleOptionValueST(Main.EquipStrapOnIfNeeded)
-	EndEvent
-EndState
-
 State OID_UnequipStrapOnIfNotNeeded
 	Event OnHighlightST()
 		SetInfoText("$ostim_tooltip_unequip_strap_on_if_not_needed")
@@ -1907,17 +1899,6 @@ State OID_UnequipStrapOnIfNotNeeded
 			UnequipStrapOnIfInWayFlags = OPTION_FLAG_DISABLED
 		EndIf
 		SetOptionFlagsST(UnequipStrapOnIfInWayFlags, false, "OID_UnequipStrapOnIfInWay")
-	EndEvent
-EndState
-
-State OID_UnequipStrapOnIfInWay
-	Event OnHighlightST()
-		SetInfoText("$ostim_tooltip_unequip_strap_on_if_in_way")
-	EndEvent
-
-	Event OnSelectST()
-		Main.UnequipStrapOnIfInWay = !Main.UnequipStrapOnIfInWay
-		SetToggleOptionValueST(Main.UnequipStrapOnIfInWay)
 	EndEvent
 EndState
 
@@ -2809,16 +2790,59 @@ int OID_ActorVoice = -1
 int OID_EquipObjectType = -1
 int OID_ActorEquipObject = -1
 
+string CurrentAction = ""
+string[] Actions
+string CurrentEvent = ""
+string[] Events
+
+int OID_SelectAction = -1
+int[] OIDs_ActionStimulation
+int[] OIDs_ActionMaxStimulation
+
+int OID_SelectEvent = -1
+int[] OIDs_EventStimulation
+int[] OIDs_EventMaxStimulation
+
 Function DrawActorsPage()
+	Actions = OData.GetActions()
+	CurrentAction = Actions[0]
+	Events = OData.GetEvents()
+	CurrentEvent = Events[0]
+
+	SetCursorFillMode(TOP_TO_BOTTOM)
 	SetCursorPosition(0)
 	OID_SelectActor = AddMenuOption("$ostim_select_actor", CurrentActor.GetDisplayName())
-	SetCursorPosition(2)
 	OID_ActorVoice = AddMenuOption("$ostim_actor_voice", OData.GetVoiceSetName(CurrentActorID))
+	AddEmptyOption()
+
+	AddColoredHeader("$ostim_header_equip_objects")
+	OID_EquipObjectType = AddMenuOption("$ostim_equip_object_type", CurrentEquipObjectType)
+	OID_ActorEquipObject = AddMenuOption("$ostim_actor_equip_object", OData.GetEquipObjectName(CurrentActorID, CurrentEquipObjectType))
 
 	SetCursorPosition(1)
-	OID_EquipObjectType = AddMenuOption("$ostim_equip_object_type", CurrentEquipObjectType)
-	SetCursorPosition(3)
-	OID_ActorEquipObject = AddMenuOption("$ostim_actor_equip_object", OData.GetEquipObjectName(CurrentActorID, CurrentEquipObjectType))
+	AddColoredHeader("$ostim_header_preferences")
+
+	OID_SelectAction = AddMenuOption("$ostim_select_action", CurrentAction)
+	OIDs_ActionStimulation = new int[3]
+	OIDs_ActionMaxStimulation = new int[3]
+	int i = 0
+	While i < 3
+		OIDs_ActionStimulation[i] = AddSliderOption(OData.Localize("$ostim_" + RoleKeys[i] + "_stimulation"), OData.GetActionStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentAction), "{2}")
+		OIDs_ActionMaxStimulation[i] = AddSliderOption(OData.Localize("$ostim_" + RoleKeys[i] + "_max_stimulation"), OData.GetActionMaxStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentAction), "{0}")
+		i += 1
+	EndWhile
+
+	AddEmptyOption()
+
+	OID_SelectEvent = AddMenuOption("$ostim_select_event", CurrentEvent)
+	OIDs_EventStimulation = new int[3]
+	OIDs_EventMaxStimulation = new int[3]
+	i = 0
+	While i < 3
+		OIDs_EventStimulation[i] = AddSliderOption(OData.Localize("$ostim_" + RoleKeys[i] + "_stimulation"), OData.GetEventStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentEvent), "{2}")
+		OIDs_EventMaxStimulation[i] = AddSliderOption(OData.Localize("$ostim_" + RoleKeys[i] + "_max_stimulation"), OData.GetEventMaxStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentEvent), "{0}")
+		i += 1
+	EndWhile
 EndFunction
 
 Function OnOptionHighlightActors(int Option)
@@ -2826,14 +2850,98 @@ Function OnOptionHighlightActors(int Option)
 		SetInfoText("$ostim_tooltip_select_actor")
 	ElseIf Option == OID_ActorVoice
 		SetInfoText("$ostim_tootip_actor_voice")
+
 	ElseIf Option == OID_EquipObjectType
 		SetInfoText("$ostim_tooltip_equip_object_type")
 	ElseIf Option == OID_ActorEquipObject
 		SetInfoText("$ostim_tooltip_actor_equip_object")
+
+	ElseIf Option == OID_SelectAction
+		SetInfoText("$ostim_tooltip_select_action")
+	ElseIf OIDs_ActionStimulation.Find(Option) >= 0
+		SetInfoText(OData.Localize("$ostim_tooltip_" + RoleKeys[OIDs_ActionStimulation.Find(Option)] + "_stimulation"))
+	ElseIf OIDs_ActionMaxStimulation.Find(Option) >= 0
+		SetInfoText(OData.Localize("$ostim_tooltip_" + RoleKeys[OIDs_ActionMaxStimulation.Find(Option)] + "_max_stimulation"))
+
+	ElseIf Option == OID_SelectEvent
+		SetInfoText("$ostim_tooltip_select_event")
+	ElseIf OIDs_EventStimulation.Find(Option) >= 0
+		SetInfoText(OData.Localize("$ostim_tooltip_" + RoleKeys[OIDs_EventStimulation.Find(Option)] + "_stimulation"))
+	ElseIf OIDs_EventMaxStimulation.Find(Option) >= 0
+		SetInfoText(OData.Localize("$ostim_tooltip_" + RoleKeys[OIDs_EventMaxStimulation.Find(Option)] + "_max_stimulation"))
 	EndIf
 EndFunction
 
 Function OnOptionSelectActors(int Option)
+
+EndFunction
+
+Function OnOptionSliderOpenActors(int Option)
+	int Index = OIDs_ActionStimulation.Find(Option)
+	If Index >= 0
+		SetSliderDialogStartValue(OData.GetActionStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentAction))
+		SetSliderDialogDefaultValue(0)
+		SetSliderDialogRange(-5, 5)
+		SetSliderDialogInterval(0.05)
+		Return
+	EndIf
+
+	Index = OIDs_ActionMaxStimulation.Find(Option)
+	If Index >= 0
+		SetSliderDialogStartValue(OData.GetActionMaxStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentAction))
+		SetSliderDialogDefaultValue(100)
+		SetSliderDialogRange(0, 100)
+		SetSliderDialogInterval(5)
+		Return
+	EndIf
+
+	Index = OIDs_EventStimulation.Find(Option)
+	If Index >= 0
+		SetSliderDialogStartValue(OData.GetEventStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentEvent))
+		SetSliderDialogDefaultValue(0)
+		SetSliderDialogRange(-25, 25)
+		SetSliderDialogInterval(0.25)
+		Return
+	EndIf
+
+	Index = OIDs_EventMaxStimulation.Find(Option)
+	If Index >= 0
+		SetSliderDialogStartValue(OData.GetEventMaxStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentEvent))
+		SetSliderDialogDefaultValue(100)
+		SetSliderDialogRange(0, 100)
+		SetSliderDialogInterval(5)
+		Return
+	EndIf
+EndFunction
+
+Function OnOptionSliderAcceptActors(int Option, float Value)
+	int Index = OIDs_ActionStimulation.Find(Option)
+	If Index >= 0
+		OData.SetActionStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentAction, Value)
+		SetSliderOptionValue(Option, Value, "{2}")
+		Return
+	EndIf
+
+	Index = OIDs_ActionMaxStimulation.Find(Option)
+	If Index >= 0
+		OData.SetActionMaxStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentAction, Value)
+		SetSliderOptionValue(Option, Value, "{0}")
+		Return
+	EndIf
+
+	Index = OIDs_EventStimulation.Find(Option)
+	If Index >= 0
+		OData.SetEventStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentEvent, Value)
+		SetSliderOptionValue(Option, Value, "{2}")
+		Return
+	EndIf
+
+	Index = OIDs_EventMaxStimulation.Find(Option)
+	If Index >= 0
+		OData.SetEventMaxStimulation(Math.Pow(2, Index) as int, CurrentActorID, CurrentEvent, Value)
+		SetSliderOptionValue(Option, Value, "{0}")
+		Return
+	EndIf
 
 EndFunction
 
@@ -2845,6 +2953,7 @@ Function OnOptionMenuOpenActors(int Option)
 		SetMenuDialogDefaultIndex(Actors.Find(PlayerRef))
 	ElseIf Option == OID_ActorVoice
 		OpenVoiceSetMenu(CurrentActorID)
+
 	ElseIf Option == OID_EquipObjectType
 		EquipObjectTypes = OData.GetEquipObjectTypes()
 		SetMenuDialogOptions(EquipObjectTypes)
@@ -2852,6 +2961,15 @@ Function OnOptionMenuOpenActors(int Option)
 		SetMenuDialogDefaultIndex(0)
 	ElseIf Option == OID_ActorEquipObject
 		OpenEquipObjectMenu(CurrentActorID, CurrentEquipObjectType)
+
+	ElseIf Option == OID_SelectAction
+		SetMenuDialogOptions(Actions)
+		SetMenuDialogStartIndex(Actions.Find(CurrentAction))
+		SetMenuDialogDefaultIndex(0)
+	ElseIf Option == OID_SelectEvent
+		SetMenuDialogOptions(Events)
+		SetMenuDialogStartIndex(Events.Find(CurrentEvent))
+		SetMenuDialogDefaultIndex(0)
 	EndIf
 EndFunction
 
@@ -2862,12 +2980,42 @@ Function OnOptionMenuAcceptActors(int Option, int Index)
 		ForcePageReset()
 	ElseIf Option == OID_ActorVoice
 		SetVoiceSet(Option, CurrentActorID, Index)
+
 	ElseIf Option == OID_EquipObjectType
 		CurrentEquipObjectType = EquipObjectTypes[Index]
 		SetMenuOptionValue(Option, CurrentEquipObjectType)
 		SetMenuOptionValue(OID_ActorEquipObject, OData.GetEquipObjectName(CurrentActorID, CurrentEquipObjectType))
 	ElseIf Option == OID_ActorEquipObject
 		SetEquipObjectID(Option, CurrentActorID, CurrentEquipObjectType, Index)
+
+	ElseIf Option == OID_SelectAction
+		CurrentAction = Actions[Index]
+		SetMenuOptionValue(Option, CurrentAction)
+		int i = OIDs_ActionStimulation.Length
+		While i
+			i -= 1
+			SetSliderOptionValue(OIDs_ActionStimulation[i], OData.GetActionStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentAction), "{2}")
+		EndWhile
+
+		i = OIDs_ActionMaxStimulation.Length
+		While i
+			i -= 1
+			SetSliderOptionValue(OIDs_ActionMaxStimulation[i], OData.GetActionMaxStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentAction), "{2}")
+		EndWhile
+	ElseIf Option == OID_SelectEvent
+		CurrentEvent = Events[Index]
+		SetMenuOptionValue(Option, CurrentEvent)
+		int i = OIDs_EventStimulation.Length
+		While i
+			i -= 1
+			SetSliderOptionValue(OIDs_EventStimulation[i], OData.GetEventStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentAction), "{2}")
+		EndWhile
+
+		i = OIDs_EventMaxStimulation.Length
+		While i
+			i -= 1
+			SetSliderOptionValue(OIDs_EventMaxStimulation[i], OData.GetEventMaxStimulation(Math.Pow(2, i) as int, CurrentActorID, CurrentAction), "{2}")
+		EndWhile
 	EndIf
 EndFunction
 
@@ -2877,11 +3025,19 @@ Function OnOptionDefaultActors(int Option)
 		ForcePageReset()
 	ElseIf Option == OID_ActorVoice
 		SetVoiceSetToDefault(Option, CurrentActorID)
+
 	ElseIf Option == OID_EquipObjectType
 		CurrentEquipObjectType = "light"
 		SetMenuOptionValue(Option, OData.GetEquipObjectName(CurrentActorID, CurrentEquipObjectType))
 	ElseIf Option == OID_ActorEquipObject
 		SetEquipObjectIDToDefault(Option, CurrentActorID, CurrentEquipObjectType)
+
+	ElseIf Option == OID_SelectAction
+		CurrentAction = Actions[0]
+		SetMenuOptionValue(Option, CurrentAction)
+	ElseIf Option == OID_SelectEvent
+		CurrentEvent = Events[0]
+		SetMenuOptionValue(Option, CurrentEvent)
 	EndIf
 EndFunction
 

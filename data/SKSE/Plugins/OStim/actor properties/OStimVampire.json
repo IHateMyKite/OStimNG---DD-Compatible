@@ -1,0 +1,10 @@
+{
+	"condition":{
+		"info": "OStimVampireCondition",
+		"mod":"OStim.esp",
+		"formid":"0xEDA"
+	},
+	"requirements":{
+		"vampire": true
+	}
+}

@@ -58,7 +58,7 @@ namespace OStim {
         excitement = -3;
 
         timesClimaxed++;
-        actor.setFactionRank(Util::APITable::getTimesClimaxedFaction(), timesClimaxed);
+        Util::APITable::getTimesClimaxedFaction().setRank(actor, timesClimaxed);
 
         if (!schlong || female && !MCM::MCMTable::futaUseMaleExcitement()) {
             excitement = std::min(MCM::MCMTable::getPostOrgasmExcitement() * timesClimaxed, MCM::MCMTable::getPostOrgasmExcitementMax());
@@ -72,9 +72,6 @@ namespace OStim {
         playClimaxSound();
 
         if (thread->isPlayerThread()) {
-            // TODO properly use GameActor here
-            FormUtil::sendModEvent(actor.form, "ostim_orgasm", thread->getCurrentNode()->scene_id, index);
-
             if (isPlayer) {
                 if (MCM::MCMTable::getBlurOnOrgasm()) {
                     FormUtil::apply(Util::LookupTable::OStimNutEffect, 1.0);
@@ -96,8 +93,8 @@ namespace OStim {
                 GameAPI::Game::shakeController(0.5, 0.5, 0.7);
             }
         }
-        // TODO properly use GameActor here
-        FormUtil::sendModEvent(actor.form, "ostim_actor_orgasm", thread->getCurrentNode()->scene_id, thread->m_threadId);
+
+        GameAPI::GameEvents::sendOrgasmEvent(thread->m_threadId, thread->getCurrentNode()->scene_id, index, actor);
 
         // todo give other actor excitement when in vaginalsex
 
@@ -130,11 +127,11 @@ namespace OStim {
     void ThreadActor::setTimeUntilClimax(float time) {
         timeUntilClimax = time;
         if (timeUntilClimax < 0) {
-            actor.setFactionRank(Util::APITable::getTimeUntilClimaxFaction(), -1);
+            Util::APITable::getTimeUntilClimaxFaction().setRank(actor, -1);
         } else if (timeUntilClimax > 100.0f){
-            actor.setFactionRank(Util::APITable::getTimeUntilClimaxFaction(), 101);
+            Util::APITable::getTimeUntilClimaxFaction().setRank(actor, 101);
         } else {
-            actor.setFactionRank(Util::APITable::getTimeUntilClimaxFaction(), static_cast<int>(timeUntilClimax));
+            Util::APITable::getTimeUntilClimaxFaction().setRank(actor, (int)timeUntilClimax);
         }
     }
 }

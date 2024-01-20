@@ -11,25 +11,10 @@
 
 namespace Graph{
     class GraphTable {
-    public:
-        static Requirement getRequirement(std::string string);
-    private:
-        inline static std::unordered_map<std::string, Requirement> requirements = {
-            {"anus", Requirement::ANUS},
-            {"breast", Requirement::BREAST},
-            {"foot", Requirement::FOOT},
-            {"hand", Requirement::HAND},
-            {"mouth", Requirement::MOUTH},
-            {"nipple", Requirement::NIPPLE},
-            {"penis", Requirement::PENIS},
-            {"testicles", Requirement::TESTICLES},
-            {"vagina", Requirement::VAGINA},
-            {"vampire", Requirement::VAMPIRE}
-        };
-
 #pragma region actions
     public:
         static void SetupActions();
+        static std::vector<std::string> getActions();
         static std::string getActionAlias(std::string type);
         static ActionAttributes* GetActionAttributesByType(std::string type);
 
@@ -41,6 +26,7 @@ namespace Graph{
 #pragma region events
     public:
         static void setupEvents();
+        static std::vector<std::string> getEvents();
         static Event* getEvent(std::string eventName);
 
     private:

@@ -26,7 +26,22 @@ string[] Function GetVoiceSetPairs() Global Native
 
 string Function GetVoiceSetName(int FormID) Global Native
 
-Function SetVoiceSet(int FormID, string Voice) Global Native 
+Function SetVoiceSet(int FormID, string Voice) Global Native
+
+
+string[] Function GetActions() Global Native
+
+float Function GetActionStimulation(int Role, int FormID, string Actn) Global Native
+Function SetActionStimulation(int Role, int FormID, string Actn, float Stimulation) Global Native
+float Function GetActionMaxStimulation(int Role, int FormID, string Actn) Global Native
+Function SetActionMaxStimulation(int Role, int FormID, string Actn, float Stimulation) Global Native
+
+string[] Function GetEvents() Global Native
+
+float Function GetEventStimulation(int Role, int FormID, string Evt) Global Native
+Function SetEventStimulation(int Role, int FormID, string Evt, float Stimulation) Global Native
+float Function GetEventMaxStimulation(int Role, int FormID, string Evt) Global Native
+Function SetEventMaxStimulation(int Role, int FormID, string Evt, float Stimulation) Global Native
 
 
 Function ResetSettings() Global Native
@@ -34,3 +49,5 @@ Function ResetSettings() Global Native
 Function ExportSettings() Global Native
 
 Function ImportSettings() Global Native
+
+string Function Localize(string Text) Global Native

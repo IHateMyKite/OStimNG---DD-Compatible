@@ -5,12 +5,14 @@
 #include "Furniture/FurnitureTable.h"
 #include "GameAPI/Game.h"
 #include "GameAPI/GameCamera.h"
+#include "GameAPI/GameEvents.h"
 #include "Graph/GraphTable.h"
 #include "Graph/Node.h"
 #include <Messaging/IMessages.h>
 #include "UI/Align/AlignMenu.h"
 #include "UI/Scene/SceneMenu.h"
 #include "UI/UIState.h"
+#include "Util/APITable.h"
 #include "Util/CameraUtil.h"
 #include "Util/Constants.h"
 #include "Util/ControlUtil.h"
@@ -59,8 +61,7 @@ namespace OStim {
         }
 
         for (auto& [index, actor] : m_actors) {
-            actor.getActor().addToFaction(Util::APITable::getActorCountFaction());
-            actor.getActor().setFactionRank(Util::APITable::getActorCountFaction(), getActorCount());
+            Util::APITable::getActorCountFaction().add(actor.getActor(), getActorCount());
         }
 
         if (furniture && MCM::MCMTable::resetClutter()) {
@@ -137,11 +138,7 @@ namespace OStim {
             }
         }
 
-        if (playerThread) {
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_prestart", "", 0);
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_start", "", 0);
-        }
-        FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_thread_start", "", m_threadId);
+        GameAPI::GameEvents::sendStartEvent(m_threadId);
     }
 
     void Thread::rebuildAlignmentKey() {
@@ -190,72 +187,67 @@ namespace OStim {
         }
         m_currentNode = a_node;
 
-        for (auto& actorIt : m_actors) {
+        for (auto& [position, actor] : m_actors) {
             // --- excitement calculation --- //
             float excitementInc = 0;
-            actorIt.second.setMaxExcitement(0);
-            std::vector<float> excitementVals;
+            actor.setMaxExcitement(0);
+            std::vector<float> stimulationValues;
             for (auto& action : m_currentNode->actions) {
-                if (action.actor == actorIt.first && action.attributes->actor.stimulation != 0) {
-                    excitementVals.push_back(action.attributes->actor.stimulation);
-                    auto maxStim = action.attributes->actor.maxStimulation;
-                    if (maxStim > actorIt.second.getMaxExcitement()) {
-                        actorIt.second.setMaxExcitement(maxStim);
+                action.roles.forEach([position, &actor, &stimulationValues, &action](Graph::Role role, int index) {
+                    if (index == position) {
+                        float stimulation = action.attributes->getStimulation(role, actor.getActor());
+                        if (stimulation != 0) {
+                            stimulationValues.push_back(stimulation);
+                            float maxStimulation = action.attributes->getMaxStimulation(role, actor.getActor());
+                            if (maxStimulation > actor.getMaxExcitement()) {
+                                actor.setMaxExcitement(maxStimulation);
+                            }
+                        }
                     }
-                }
-                if (action.target == actorIt.first && action.attributes->target.stimulation != 0) {
-                    excitementVals.push_back(action.attributes->target.stimulation);
-                    auto maxStim = action.attributes->target.maxStimulation;
-                    if (maxStim > actorIt.second.getMaxExcitement()) {
-                        actorIt.second.setMaxExcitement(maxStim);
-                    }
-                }
-                if (action.performer == actorIt.first && action.attributes->performer.stimulation != 0) {
-                    excitementVals.push_back(action.attributes->performer.stimulation);
-                }
+                });
             }
 
-            switch (excitementVals.size()) {
+            switch (stimulationValues.size()) {
                 case 0:
                     excitementInc = 0;
                     break;
                 case 1:
-                    excitementInc = excitementVals[0];
+                    excitementInc = stimulationValues[0];
                     break;
                 default: {
-                    std::sort(excitementVals.begin(), excitementVals.end(), std::greater<float>());
-                    excitementInc = excitementVals[0];
-                    for (int i = 1; i < excitementVals.size(); i++) {
-                        excitementInc += excitementVals[i] * 0.1;
+                    std::sort(stimulationValues.begin(), stimulationValues.end(), std::greater<float>());
+                    excitementInc = stimulationValues[0];
+                    for (int i = 1; i < stimulationValues.size(); i++) {
+                        excitementInc += stimulationValues[i] * 0.1;
                     }
                 } break;
             }
 
-            actorIt.second.setBaseExcitementInc(excitementInc);
+            actor.setBaseExcitementInc(excitementInc);
             if (excitementInc <= 0) {
-                actorIt.second.setMaxExcitement(0);
+                actor.setMaxExcitement(0);
             }
 
 
             // --- undressing --- //
-            if (actorIt.first < m_currentNode->actors.size() && !m_currentNode->actors[actorIt.first].noStrip) {
-                if (MCM::MCMTable::undressMidScene() && m_currentNode->doFullStrip(actorIt.first)) {
-                    actorIt.second.undress();
-                    actorIt.second.removeWeapons();
+            if (position < m_currentNode->actors.size() && !m_currentNode->actors[position].noStrip) {
+                if (MCM::MCMTable::undressMidScene() && m_currentNode->doFullStrip(position)) {
+                    actor.undress();
+                    actor.removeWeapons();
                 } else if (MCM::MCMTable::partialUndressing()) {
-                    uint32_t slotMask = m_currentNode->getStrippingMask(actorIt.first);
+                    uint32_t slotMask = m_currentNode->getStrippingMask(position);
                     if (slotMask != 0) {
-                        actorIt.second.undressPartial(slotMask);
+                        actor.undressPartial(slotMask);
                         if ((slotMask & MCM::MCMTable::removeWeaponsWithSlot()) != 0) {
-                            actorIt.second.removeWeapons();
+                            actor.removeWeapons();
                         }
                     }
                 }
             }
 
             // --- scaling / heel offsets / facial expressions --- //
-            if (actorIt.first < m_currentNode->actors.size()) {
-                actorIt.second.changeNode(&(m_currentNode->actors[actorIt.first]), m_currentNode->getFacialExpressions(actorIt.first), m_currentNode->getOverrideExpressions(actorIt.first));
+            if (position < m_currentNode->actors.size()) {
+                actor.changeNode(&(m_currentNode->actors[position]), m_currentNode->getFacialExpressions(position), m_currentNode->getOverrideExpressions(position));
             }
         }
 
@@ -273,8 +265,8 @@ namespace OStim {
             }
 
             for (Sound::SoundType* soundType : action.attributes->sounds) {
-                ThreadActor* actor = GetActor(action.actor);
-                ThreadActor* target = GetActor(action.target);
+                ThreadActor* actor = GetActor(action.roles.actor);
+                ThreadActor* target = GetActor(action.roles.target);
                 if (actor && target) {
                     if (playerThread || !soundType->playPlayerThreadOnly()) {
                         Sound::SoundPlayer* soundPlayer = soundType->create(actor, target);
@@ -307,11 +299,7 @@ namespace OStim {
         logger::info("Sending animation changed event");
         Messaging::MessagingRegistry::GetSingleton()->SendMessageToListeners(msg);
 
-        if (playerThread) {
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_scenechanged", m_currentNode->scene_id, 0);
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_scenechanged_" + m_currentNode->scene_id, "", 0);
-        }
-        FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_thread_scenechanged", m_currentNode->scene_id, m_threadId);
+        GameAPI::GameEvents::sendSceneChangedEvent(m_threadId, m_currentNode->scene_id);
     }
 
     void Thread::AddActor(RE::Actor* actor) {
@@ -455,6 +443,14 @@ namespace OStim {
         return -1;
     }
 
+    std::vector<GameAPI::GameActor> Thread::getGameActors() {
+        std::vector<GameAPI::GameActor> gameActors;
+        for (auto& [index, actor] : m_actors) {
+            gameActors.push_back(actor.getActor());
+        }
+        return gameActors;
+    }
+
     void Thread::SetSpeed(int speed) {
         if (speed < 0) {
             speed = 0;
@@ -491,9 +487,9 @@ namespace OStim {
             actorIt.second.changeSpeed(speed);
         }
 
+        GameAPI::GameEvents::sendSpeedChangedEvent(m_threadId, m_currentNode->scene_id, speed);
         if (playerThread) {
             UI::UIState::GetSingleton()->SpeedChanged(this, speed);
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_animationchanged", m_currentNode->scene_id, speed);
         }
     }
 
@@ -531,18 +527,14 @@ namespace OStim {
             return;
         }
 
-        // legacy mod event
-        if (playerThread && actorIndex == 0 && targetIndex == 1 && graphEvent->isChildOf(Graph::GraphTable::getEvent("spank"))) {
-            FormUtil::sendModEvent(GetActor(1)->getActor().form, "ostim_spank", "", 0);
-        }
-
-        ThreadActor* actor = GetActor(actorIndex);
-        ThreadActor* target = GetActor(targetIndex);
-        ThreadActor* performer = GetActor(performerIndex);
+        Graph::RoleMap<ThreadActor*> roles{};
+        roles.actor = GetActor(actorIndex);
+        roles.target = GetActor(targetIndex);
+        roles.performer = GetActor(performerIndex);
 
         GameAPI::GameSound sound = graphEvent->getSound();
         if (sound) {
-            sound.play(actor->getActor(), MCM::MCMTable::getSoundVolume());
+            sound.play(roles.actor->getActor(), MCM::MCMTable::getSoundVolume());
         }
 
         float cameraShakeDuration = graphEvent->getCameraShakeDuration();
@@ -557,48 +549,38 @@ namespace OStim {
             ControlUtil::rumbleController(cameraShakeStrength, cameraShakeDuration);
         }
 
-        if (actor) {
-            float actorStimulation = graphEvent->getActorStimulation();
-            if (actorStimulation > 0.0 && actor->getExcitement() < graphEvent->getActorMaxStimulation()) {
-                actor->addExcitement(actorStimulation, true);
-            }
+        roles.forEach([&graphEvent](Graph::Role role, ThreadActor* actor) {
+            if (actor) {
+                float stimulation = graphEvent->getStimulation(role, actor->getActor());
+                if (stimulation > 0.0 && actor->getExcitement() < graphEvent->getMaxStimulation(role, actor->getActor())){
+                    actor->addExcitement(stimulation, true);
+                }
+            }    
+        });
+
+        if (roles.actor && roles.target) {
+            roles.actor->reactToEvent(graphEvent->getReactionDelay(Graph::Role::ACTOR), graphEvent, roles.target->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventActorReactions;});
+            roles.target->reactToEvent(graphEvent->getReactionDelay(Graph::Role::TARGET), graphEvent, roles.actor->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventTargetReactions;});
         }
 
-        if (target) {
-            float targetStimulation = graphEvent->getTargetStimulation();
-            if (targetStimulation > 0.0 && target->getExcitement() < graphEvent->getTargetMaxStimulation()) {
-                target->addExcitement(targetStimulation, true);
-            }
+        if (roles.performer) {
+            if (roles.performer == roles.actor) {
+                if (roles.target) {
+                    roles.performer->reactToEvent(graphEvent->getReactionDelay(Graph::Role::PERFORMER), graphEvent, roles.target->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventPerformerReactions;});
+                }
+            } else {
+                if (roles.actor) {
+                    roles.performer->reactToEvent(graphEvent->getReactionDelay(Graph::Role::PERFORMER), graphEvent, roles.actor->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventPerformerReactions;});
+                }
+            }   
         }
 
-        if (performer) {
-            float performerStimulation = graphEvent->getPerformerStimulation();
-            if (performerStimulation > 0.0 && performer->getExcitement() < graphEvent->getPerformerMaxStimulation()) {
-                performer->addExcitement(performerStimulation, true);
-            }
-        }
+        Graph::RoleMap<GameAPI::GameActor> gameRoles;
+        gameRoles.forEach([&roles](Graph::Role role, GameAPI::GameActor actor) {
+            actor = (*roles.get(role))->getActor();
+        });
 
-        if (actor && target) {
-            actor->reactToEvent(graphEvent->getActorReactionDelay(), graphEvent, target->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventActorReactions;});
-            target->reactToEvent(graphEvent->getTargetReactionDelay(), graphEvent, actor->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventTargetReactions;});
-        }
-
-        if (actor && performer) {
-            performer->reactToEvent(graphEvent->getPerformerReactionDelay(), graphEvent, actor->getActor(), [](Sound::VoiceSet& voiceSet){return &voiceSet.eventPerformerReactions;});
-        }
-
-        const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-        auto vm = skyrimVM ? skyrimVM->impl : nullptr;
-        if (vm) {
-            RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-            int tempID = m_threadId;
-            std::string type = graphEvent->id;
-            RE::Actor* reActor = actor->getActor().form;
-            RE::Actor* reTarget = target->getActor().form;
-            RE::Actor* rePerformer = performer->getActor().form;
-            auto args = RE::MakeFunctionArguments<>(std::move(tempID), std::move(type), std::move(reActor), std::move(reTarget), std::move(rePerformer));
-            vm->DispatchStaticCall("OEvent", "SendOStimEvent", args, callback);
-        }
+        GameAPI::GameEvents::sendOStimEvent(m_threadId, graphEvent->id, gameRoles);
     }
 
 
@@ -663,11 +645,7 @@ namespace OStim {
         }
         logger::info("closed thread {}", m_threadId);
 
-        if (playerThread) {
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_end", "", -1);
-            FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_totalend", "", 0);
-        }
-        FormUtil::sendModEvent(Util::LookupTable::OSexIntegrationMainQuest, "ostim_thread_end", "", m_threadId);
+        GameAPI::GameEvents::sendEndEvent(m_threadId, m_currentNode->scene_id, getGameActors());
     }
 
     void Thread::addActorSink(RE::Actor* a_actor) {

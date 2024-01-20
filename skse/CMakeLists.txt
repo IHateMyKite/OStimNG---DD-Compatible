@@ -40,6 +40,7 @@ set(sources
     src/Core/ThreadActor/ThreadActorClimax.cpp
     src/Core/ThreadActor/ThreadActorEquipObjects.cpp
     src/Core/ThreadActor/ThreadActorExcitement.cpp
+    src/Core/ThreadActor/ThreadActorExpression.cpp
     src/Core/ThreadActor/ThreadActorSound.cpp
     src/Core/ThreadStarter/NPCThreadStarter.cpp
     src/Core/ThreadStarter/PlayerThreadStarter.cpp
@@ -60,6 +61,8 @@ set(sources
     src/GameAPI/GameActor.cpp
     src/GameAPI/GameCamera.cpp
     src/GameAPI/GameDialogue.cpp
+    src/GameAPI/GameEvents.cpp
+    src/GameAPI/GameFaction.cpp
     src/GameAPI/GameHooks.cpp
     src/GameAPI/GameObject.cpp
     src/GameAPI/GamePosition.cpp
@@ -75,9 +78,9 @@ set(sources
     src/Graph/GraphTable/GraphTableSetupOptions.cpp
     src/Graph/Node/NodeNavigation.cpp
     src/Graph/Action.cpp
+    src/Graph/ActionAttributes.cpp
     src/Graph/Event.cpp
     src/Graph/GraphActor.cpp
-    src/Graph/GraphTable.cpp
     src/Graph/Node.cpp
     src/Graph/Sequence.cpp
     src/InterfaceSpec/PluginInterface.cpp
@@ -98,6 +101,7 @@ set(sources
 	src/Sound/ActionSound/SoundType.cpp
 	src/Sound/SoundTable.cpp
     src/Sound/SoundUtil.cpp
+    src/Trait/TraitTable/TraitTableActorProperties.cpp
     src/Trait/Condition.cpp
     src/Trait/FacialExpression.cpp
     src/Trait/TraitTable.cpp

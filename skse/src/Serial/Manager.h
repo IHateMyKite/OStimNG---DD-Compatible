@@ -23,6 +23,16 @@ namespace Serialization {
     RE::FormID getVoiceSet(RE::FormID formID);
     void setVoiceSet(RE::FormID formID, RE::FormID voice);
 
+    float getActionStimulation(Graph::Role role, RE::FormID formID, std::string action);
+    void setActionStimulation(Graph::Role role, RE::FormID formID, std::string action, float stimulation);
+    float getActionMaxStimulation(Graph::Role role, RE::FormID formID, std::string action);
+    void setActionMaxStimulation(Graph::Role role, RE::FormID formID, std::string action, float maxStimulation);
+
+    float getEventStimulation(Graph::Role role, RE::FormID formID, std::string evt);
+    void setEventStimulation(Graph::Role role, RE::FormID formID, std::string evt, float stimulation);
+    float getEventMaxStimulation(Graph::Role role, RE::FormID formID, std::string evt);
+    void setEventMaxStimulation(Graph::Role role, RE::FormID formID, std::string evt, float maxStimulation);
+
     void Save(SKSE::SerializationInterface* a_intfc);
     void Load(SKSE::SerializationInterface* a_intfc);
     void Revert(SKSE::SerializationInterface* a_intfc);

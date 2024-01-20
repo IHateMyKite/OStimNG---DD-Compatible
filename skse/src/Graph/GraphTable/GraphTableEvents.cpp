@@ -1,6 +1,7 @@
 #include "Graph/GraphTable.h"
 
 #include "Util/JsonFileLoader.h"
+#include "Util/MapUtil.h"
 #include "Util/StringUtil.h"
 
 namespace Graph {
@@ -111,15 +112,12 @@ namespace Graph {
                 }
             }
 
-            if (json.contains("actor")) {
-                graphEvent.actor = parseEventActor(json["actor"]);
-            }
-            if (json.contains("target")) {
-                graphEvent.target = parseEventActor(json["target"]);
-            }
-            if (json.contains("performer")) {
-                graphEvent.performer = parseEventActor(json["performer"]);
-            }
+            graphEvent.roles.forEach([&path, &filename, &json](Role role, EventActor& actor) {
+                std::string key = *RoleMapAPI::KEYS.get(role);
+                if (json.contains(key)) {
+                    actor = parseEventActor(json[key]);
+                }
+            });
 
             if (json.contains("sound")) {
                 graphEvent.sound.loadJson(path, json["sound"]);
@@ -156,6 +154,10 @@ namespace Graph {
                 logger::warn("supertype '{}' of event '{}' doesn't exist", supertype, subtype);
             }
         }
+    }
+
+    std::vector<std::string> GraphTable::getEvents() {
+        return MapUtil::keyList(events);
     }
 
     Event* GraphTable::getEvent(std::string eventName) {
