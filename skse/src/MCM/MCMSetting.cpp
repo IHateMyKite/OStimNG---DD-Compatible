@@ -10,26 +10,28 @@ namespace MCM {
     }
 
     void MCMSetting::restoreDefault() {
-        globalVariable->value = defaultValue;
+        if (globalVariable)
+            globalVariable->value = defaultValue;
     }
 
     float MCMSetting::asFloat() {
-        return globalVariable->value;
+        return globalVariable ? globalVariable->value : 0.0f;
     }
 
     int MCMSetting::asInt() {
-        return static_cast<int>(globalVariable->value);
+        return globalVariable ? static_cast<int>(globalVariable->value) : 0;
     }
 
     bool MCMSetting::asBool() {
-        return globalVariable->value != 0;
+        return globalVariable ? globalVariable->value != 0 : false;
     }
 
     void MCMSetting::exportSetting(json& json) {
-        json[exportValue] = globalVariable->value;
+        json[exportValue] = globalVariable ? globalVariable->value : 0;
     }
 
     void MCMSetting::importSetting(json& json) {
+        if (!globalVariable) return;
         if (json.contains(exportValue)) {
             globalVariable->value = json[exportValue];
         } else {

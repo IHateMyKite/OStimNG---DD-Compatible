@@ -414,7 +414,33 @@ namespace OStim {
                 faceData->modifierKeyFrame.isUpdated = false;
             }
 
-            if (!phonemeUpdaters.empty()) {
+            typedef bool(* IsGagged)(RE::Actor*);
+            static IsGagged DDNGIsGagged = nullptr;
+
+            typedef void(* UpdateGagExpression)(RE::Actor*);
+            static UpdateGagExpression DDNGUpdateGagExpression = nullptr;
+
+            static HINSTANCE dllHandle = LoadLibrary(TEXT("DeviousDevices.dll"));
+            if (dllHandle != NULL)
+            {
+                FARPROC pIsGagged = GetProcAddress(HMODULE (dllHandle),"IsGagged");
+                FARPROC pUpdateGagExpression = GetProcAddress(HMODULE (dllHandle),"UpdateGagExpression");
+                DDNGIsGagged = IsGagged(pIsGagged);
+                DDNGUpdateGagExpression = UpdateGagExpression(pUpdateGagExpression);
+            }
+
+            bool loc_isGagged = false;
+
+            if (DDNGIsGagged != nullptr && DDNGUpdateGagExpression != nullptr)
+            {
+                loc_isGagged = DDNGIsGagged(actor.form);
+                if (loc_isGagged)
+                {
+                    DDNGUpdateGagExpression(actor.form);
+                }
+            }
+
+            if (!phonemeUpdaters.empty() && !loc_isGagged) {
                 std::vector<int> toDelete;
                 for (auto& [key, updater] : phonemeUpdaters) {
                     if (updater.delay > 0) {

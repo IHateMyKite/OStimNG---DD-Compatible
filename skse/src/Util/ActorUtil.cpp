@@ -8,18 +8,47 @@
 
 namespace ActorUtil {
     void sort(std::vector<GameAPI::GameActor>& actors, std::vector<GameAPI::GameActor>& dominantActors, int playerIndex) {
+        enum BondageState : uint32_t
+        {
+            sNone               = 0x0000,  // Non bondage state
+            sHandsBound         = 0x0001,  // actors wears any kind of heavy bondage device
+            sHandsBoundNoAnim   = 0x0002,  // actor wears heavy bondage device which hides arms. Because of that it can be to some extend used with normal animations
+            sGaggedBlocking     = 0x0004,  // actor wears gag which block mouth
+            sChastifiedGenital  = 0x0008,  // actor wears chastity belt which blocks genitals
+            sChastifiedAnal     = 0x0010,  // actor wears chastity belt which blocks anal
+            sChastifiedBreasts  = 0x0020,  // actor wears chastity bra which blocks breasts
+            sBlindfolded        = 0x0040,  // ...
+            sMittens            = 0x0080,  // ...
+            sBoots              = 0x0100,  // ...
+            sTotal              = 0x0200   // Last bit for looping
+        };
+
+        typedef BondageState(* GetBondageState)(RE::Actor*);
+        static GetBondageState DDNGGetBondageState = nullptr;
+
+        static HINSTANCE dllHandle = LoadLibrary(TEXT("DeviousDevices.dll"));
+        if (dllHandle != NULL)
+        {
+            FARPROC pGetBondageState = GetProcAddress(HMODULE (dllHandle),"GetBondageState");
+            DDNGGetBondageState = GetBondageState(pGetBondageState);
+        }
+
         std::stable_sort(actors.begin(), actors.end(), [&dominantActors](GameAPI::GameActor actorA, GameAPI::GameActor actorB) {
-            if (VectorUtil::contains(dominantActors, actorA)) {
-                if (!VectorUtil::contains(dominantActors, actorB)) {
+            const BondageState loc_stateA = DDNGGetBondageState(actorA.form);
+            const BondageState loc_stateB = DDNGGetBondageState(actorB.form);
+
+            if (VectorUtil::contains(dominantActors, actorA) && !(loc_stateA & sHandsBound)) {
+                if ((loc_stateB & sHandsBound) || !VectorUtil::contains(dominantActors, actorB)) {
                     return true;
                 }
             } else {
-                if (VectorUtil::contains(dominantActors, actorB)) {
+                if (VectorUtil::contains(dominantActors, actorB) && !(loc_stateB & sHandsBound)) {
                     return false;
                 }
             }
-            return Compatibility::CompatibilityTable::hasSchlong(actorA) &&
-                   !Compatibility::CompatibilityTable::hasSchlong(actorB);
+            return (!(loc_stateA & sHandsBound) && (loc_stateB & sHandsBound))  || // bondage check
+                    (Compatibility::CompatibilityTable::hasSchlong(actorA)      &&
+                    !Compatibility::CompatibilityTable::hasSchlong(actorB));
         });
 
         GameAPI::GameActor player = GameAPI::GameActor::getPlayer();
@@ -44,7 +73,18 @@ namespace ActorUtil {
             }
         } else {
             if (actors.size() == 2) {
-                if (Compatibility::CompatibilityTable::hasSchlong(actors[0]) == Compatibility::CompatibilityTable::hasSchlong(actors[1])) {
+                const BondageState loc_stateA = DDNGGetBondageState(actors[0].form);
+                const BondageState loc_stateB = DDNGGetBondageState(actors[1].form);
+
+                if (!(loc_stateA & sHandsBound) && (loc_stateB & sHandsBound)) {        // bondage check
+                    actors[0] = actors[0];
+                    actors[1] = actors[1];
+                }
+                else if ((loc_stateA & sHandsBound) && !(loc_stateB & sHandsBound)) {   // bondage check
+                    actors[0] = actors[1];
+                    actors[1] = actors[0];
+                }
+                else if (Compatibility::CompatibilityTable::hasSchlong(actors[0]) == Compatibility::CompatibilityTable::hasSchlong(actors[1])) {
                     if (MCM::MCMTable::playerAlwaysDomGay()) {
                         if (actors[1] == player) {
                             actors[1] = actors[0];

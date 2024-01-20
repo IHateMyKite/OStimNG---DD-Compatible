@@ -28,6 +28,33 @@ namespace Trait {
             return condition;
         }
 
+        enum BondageState : uint32_t
+        {
+            sNone               = 0x0000,  // Non bondage state
+            sHandsBound         = 0x0001,  // actors wears any kind of heavy bondage device
+            sHandsBoundNoAnim   = 0x0002,  // actor wears heavy bondage device which hides arms. Because of that it can be to some extend used with normal animations
+            sGaggedBlocking     = 0x0004,  // actor wears gag which block mouth
+            sChastifiedGenital  = 0x0008,  // actor wears chastity belt which blocks genitals
+            sChastifiedAnal     = 0x0010,  // actor wears chastity belt which blocks anal
+            sChastifiedBreasts  = 0x0020,  // actor wears chastity bra which blocks breasts
+            sBlindfolded        = 0x0040,  // ...
+            sMittens            = 0x0080,  // ...
+            sBoots              = 0x0100,  // ...
+            sTotal              = 0x0200   // Last bit for looping
+        };
+
+        typedef BondageState(* GetBondageState)(RE::Actor*);
+        static GetBondageState DDNGGetBondageState = nullptr;
+
+        static HINSTANCE dllHandle = LoadLibrary(TEXT("DeviousDevices.dll"));
+        if (dllHandle != NULL)
+        {
+            FARPROC pGetBondageState = GetProcAddress(HMODULE (dllHandle),"GetBondageState");
+            DDNGGetBondageState = GetBondageState(pGetBondageState);
+        }
+
+        BondageState loc_state = DDNGGetBondageState(actor.form);
+
         GameAPI::GameSex sex = actor.getSex();
         switch (sex) {
             case GameAPI::GameSex::FEMALE:
@@ -42,27 +69,27 @@ namespace Trait {
             break;
         }
 
-        condition.requirements |= Graph::Requirement::ANUS;
+        if (!(loc_state & sChastifiedAnal)) condition.requirements |= Graph::Requirement::ANUS;
 
         if (actor.isSex(GameAPI::GameSex::FEMALE)) {
-            condition.requirements |= Graph::Requirement::BREAST;
+            if (!(loc_state & sChastifiedBreasts)) condition.requirements |= Graph::Requirement::BREAST;
             if (MCM::MCMTable::unequipStrapOnIfNotNeeded() || MCM::MCMTable::unequipStrapOnIfInWay() || !threadActor || !threadActor->isObjectEquipped("strapon")) {
-                condition.requirements |= Graph::Requirement::VAGINA;
+                if (!(loc_state & sChastifiedGenital)) condition.requirements |= Graph::Requirement::VAGINA;
             }
         }
 
         condition.requirements |= Graph::Requirement::FOOT;
-        condition.requirements |= Graph::Requirement::HAND;
-        condition.requirements |= Graph::Requirement::MOUTH;
-        condition.requirements |= Graph::Requirement::NIPPLE;
+        if (!(loc_state & sHandsBoundNoAnim) && !(loc_state & sMittens))    condition.requirements |= Graph::Requirement::HAND;
+        if (!(loc_state & sGaggedBlocking))                                 condition.requirements |= Graph::Requirement::MOUTH;
+        if (!(loc_state & sChastifiedBreasts))                              condition.requirements |= Graph::Requirement::NIPPLE;
 
         bool hasSchlong = Compatibility::CompatibilityTable::hasSchlong(actor);
         if (hasSchlong) {
-            condition.requirements |= Graph::Requirement::PENIS;
-            condition.requirements |= Graph::Requirement::TESTICLES;
+            if (!(loc_state & sChastifiedGenital)) condition.requirements |= Graph::Requirement::PENIS;
+            if (!(loc_state & sChastifiedGenital)) condition.requirements |= Graph::Requirement::TESTICLES;
         } else {
             if (MCM::MCMTable::equipStrapOnIfNeeded() || threadActor && threadActor->isObjectEquipped("strapon")) {
-                condition.requirements |= Graph::Requirement::PENIS;
+                if (!(loc_state & sChastifiedGenital)) condition.requirements |= Graph::Requirement::PENIS;
             }
         }
 
